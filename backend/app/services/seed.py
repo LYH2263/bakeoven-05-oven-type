@@ -1,21 +1,44 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.models import Batch, ConflictLog, Oven, Product
+from app.models.models import (
+    OVEN_TYPE_STONE,
+    OVEN_TYPE_TRAY,
+    Batch,
+    ConflictLog,
+    Oven,
+    Product,
+)
 
 
-def seed_if_empty(db: Session) -> None:
+def seed_if_empty(db: Session, backfill: bool = False) -> None:
+    # 仅在旧库刚补 oven_type 列时按标签一次性回填，之后尊重用户在炉位页的修改
+    if backfill:
+        for oven in db.scalars(select(Oven)).all():
+            if "石板" in oven.label and oven.oven_type != OVEN_TYPE_STONE:
+                oven.oven_type = OVEN_TYPE_STONE
+
     if db.scalar(select(Product.id).limit(1)):
+        # 旧库补一个只要石板的产品，便于演示炉型不符拦截
+        has_stone = db.scalar(
+            select(Product.id).where(Product.oven_type == OVEN_TYPE_STONE).limit(1)
+        )
+        if not has_stone:
+            db.add(Product(name="石板法棍", ferment_min=45, bake_min=30, oven_type=OVEN_TYPE_STONE))
+        db.commit()
         return
+
     products = [
-        Product(name="乡村欧包", ferment_min=40, bake_min=35),
-        Product(name="黄油可颂", ferment_min=25, bake_min=20),
-        Product(name="布朗尼", ferment_min=0, bake_min=30),
+        Product(name="乡村欧包", ferment_min=40, bake_min=35, oven_type=OVEN_TYPE_TRAY),
+        Product(name="黄油可颂", ferment_min=25, bake_min=20, oven_type=OVEN_TYPE_TRAY),
+        Product(name="布朗尼", ferment_min=0, bake_min=30, oven_type=OVEN_TYPE_TRAY),
+        # 只可进石板炉的产品
+        Product(name="石板法棍", ferment_min=45, bake_min=30, oven_type=OVEN_TYPE_STONE),
     ]
     ovens = [
-        Oven(label="一层 1 号炉", capacity_note="盘炉"),
-        Oven(label="一层 2 号炉", capacity_note="盘炉"),
-        Oven(label="二层石板炉", capacity_note="石板"),
+        Oven(label="一层 1 号炉", capacity_note="盘炉", oven_type=OVEN_TYPE_TRAY),
+        Oven(label="一层 2 号炉", capacity_note="盘炉", oven_type=OVEN_TYPE_TRAY),
+        Oven(label="二层石板炉", capacity_note="石板", oven_type=OVEN_TYPE_STONE),
     ]
     db.add_all(products + ovens)
     db.flush()

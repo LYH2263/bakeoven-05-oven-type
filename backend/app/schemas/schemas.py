@@ -1,5 +1,9 @@
 from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+OvenType = Literal["tray", "stone"]
 
 
 class ProductOut(BaseModel):
@@ -7,14 +11,24 @@ class ProductOut(BaseModel):
     name: str
     ferment_min: int
     bake_min: int
+    oven_type: OvenType
     model_config = {"from_attributes": True}
+
+
+class ProductUpdate(BaseModel):
+    oven_type: OvenType
 
 
 class OvenOut(BaseModel):
     id: int
     label: str
     capacity_note: str
+    oven_type: OvenType
     model_config = {"from_attributes": True}
+
+
+class OvenUpdate(BaseModel):
+    oven_type: OvenType
 
 
 class BatchOut(BaseModel):
@@ -25,7 +39,10 @@ class BatchOut(BaseModel):
     start_min: int
     status: str
     product_name: str | None = None
+    product_oven_type: OvenType | None = None
     oven_label: str | None = None
+    oven_oven_type: OvenType | None = None
+    type_mismatch: bool = False
     ferment_end: int | None = None
     bake_end: int | None = None
     model_config = {"from_attributes": True}
@@ -43,6 +60,7 @@ class GanttBlock(BaseModel):
     code: str
     oven_id: int
     oven_label: str
+    oven_type: OvenType
     phase: str
     start_min: int
     end_min: int
@@ -60,6 +78,7 @@ class ConflictOut(BaseModel):
 class WindowOut(BaseModel):
     oven_id: int
     oven_label: str
+    oven_type: OvenType
     start_min: int
     end_min: int
     duration_min: int

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { api } from "../api/client";
+import { ovenTypeLabel, type OvenType } from "../api/ovenType";
 
 const drawerLinks = [
   ["/gantt", "甘特台"],
@@ -11,13 +12,14 @@ const drawerLinks = [
   ["/windows", "可开工"],
 ];
 
-type Oven = { id: number; label: string; capacity_note: string };
+type Oven = { id: number; label: string; capacity_note: string; oven_type: OvenType };
 type Conflict = { id: number; batch_code: string; oven_id: number; detail: string; created_at: string };
 type Block = {
   batch_id: number;
   code: string;
   oven_id: number;
   oven_label: string;
+  oven_type: OvenType;
   phase: string;
   start_min: number;
   end_min: number;
@@ -38,12 +40,13 @@ export default function Layout() {
 
   const ovenHeaders = useMemo(() => {
     if (ovens.length) return ovens;
-    const map = new Map<number, string>();
-    for (const b of blocks) map.set(b.oven_id, b.oven_label);
-    return [...map.entries()].map(([id, label]) => ({
+    const map = new Map<number, { label: string; oven_type: OvenType }>();
+    for (const b of blocks) map.set(b.oven_id, { label: b.oven_label, oven_type: b.oven_type });
+    return [...map.entries()].map(([id, v]) => ({
       id,
-      label,
+      label: v.label,
       capacity_note: "",
+      oven_type: v.oven_type,
     }));
   }, [ovens, blocks]);
 
@@ -91,9 +94,7 @@ export default function Layout() {
               <div key={o.id} className="oven-lane-chip">
                 <span className="oven-lane-id">#{o.id}</span>
                 <strong>{o.label}</strong>
-                {o.capacity_note && (
-                  <span className="oven-lane-cap">{o.capacity_note}</span>
-                )}
+                <span className="oven-lane-cap">{ovenTypeLabel(o.oven_type)}</span>
               </div>
             ))}
             {!ovenHeaders.length && (

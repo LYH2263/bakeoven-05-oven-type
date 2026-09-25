@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-type P = { id: number; name: string }; type O = { id: number; label: string };
-type B = { id: number; code: string; product_name?: string; oven_label?: string; start_min: number; ferment_end?: number; bake_end?: number; status: string };
+import { ovenTypeLabel, type OvenType } from "../api/ovenType";
+type P = { id: number; name: string; oven_type: OvenType };
+type O = { id: number; label: string; oven_type: OvenType };
+type B = { id: number; code: string; product_name?: string; oven_label?: string; start_min: number; ferment_end?: number; bake_end?: number; status: string; type_mismatch?: boolean };
 function fmt(m: number) { const h = Math.floor(m/60), mm = m%60; return `${String(h).padStart(2,"0")}:${String(mm).padStart(2,"0")}`; }
 export default function BatchesPage() {
   const [products, setProducts] = useState<P[]>([]);
@@ -15,6 +17,9 @@ export default function BatchesPage() {
     api<O[]>("/ovens").then(o => { setOvens(o); if (o[0]) setOid(o[0].id); });
     reload();
   }, []);
+  const selProduct = products.find(p => p.id === pid);
+  const selOven = ovens.find(o => o.id === oid);
+  const typeMismatch = !!selProduct && !!selOven && selProduct.oven_type !== selOven.oven_type;
   async function create() {
     setMsg(""); setErr("");
     try {
@@ -26,16 +31,18 @@ export default function BatchesPage() {
   return (<>
     <h2>批次</h2>
     <div className="toolbar">
-      <select value={pid} onChange={e => setPid(Number(e.target.value))}>{products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>
-      <select value={oid} onChange={e => setOid(Number(e.target.value))}>{ovens.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}</select>
+      <select value={pid} onChange={e => setPid(Number(e.target.value))}>{products.map(p => <option key={p.id} value={p.id}>{p.name}（{ovenTypeLabel(p.oven_type)}）</option>)}</select>
+      <select value={oid} onChange={e => setOid(Number(e.target.value))}>{ovens.map(o => <option key={o.id} value={o.id}>{o.label}（{ovenTypeLabel(o.oven_type)}）</option>)}</select>
       <label>开工分钟 <input type="number" value={start} onChange={e => setStart(Number(e.target.value))} style={{ width: 90 }} /></label>
       <button onClick={create}>创建生产批次</button>
+      {typeMismatch && <span className="err">炉型不符：产品需{selProduct ? ovenTypeLabel(selProduct.oven_type) : ""}，炉位为{selOven ? ovenTypeLabel(selOven.oven_type) : ""}，排入将被拒绝</span>}
     </div>
     {msg && <div className="ok">{msg}</div>}
     {err && <div className="err">{err}</div>}
     <table className="table"><thead><tr><th>批次</th><th>产品</th><th>炉位</th><th>发酵</th><th>烘烤结束</th><th>状态</th></tr></thead>
-    <tbody>{rows.map(b => <tr key={b.id}><td className="mono">{b.code}</td><td>{b.product_name}</td><td>{b.oven_label}</td>
+    <tbody>{rows.map(b => <tr key={b.id} className={b.type_mismatch ? "row-warn" : ""}><td className="mono">{b.code}</td><td>{b.product_name}</td><td>{b.oven_label}</td>
       <td className="mono">{fmt(b.start_min)}–{fmt(b.ferment_end ?? b.start_min)}</td>
-      <td className="mono">{fmt(b.bake_end ?? b.start_min)}</td><td>{b.status}</td></tr>)}</tbody></table>
+      <td className="mono">{fmt(b.bake_end ?? b.start_min)}</td>
+      <td>{b.type_mismatch ? <span className="err">炉型不符·未占炉</span> : b.status}</td></tr>)}</tbody></table>
   </>);
 }

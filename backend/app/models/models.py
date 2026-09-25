@@ -1,9 +1,18 @@
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+
+# 炉型：盘炉（烤盘进出）/ 石板炉
+OVEN_TYPE_TRAY = "tray"
+OVEN_TYPE_STONE = "stone"
+OVEN_TYPES = (OVEN_TYPE_TRAY, OVEN_TYPE_STONE)
+OVEN_TYPE_LABELS = {
+    OVEN_TYPE_TRAY: "盘炉",
+    OVEN_TYPE_STONE: "石板",
+}
 
 
 class Product(Base):
@@ -12,6 +21,8 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(80), unique=True)
     ferment_min: Mapped[int] = mapped_column(Integer)
     bake_min: Mapped[int] = mapped_column(Integer)
+    # 该产品可进入的炉型
+    oven_type: Mapped[str] = mapped_column(String(10), default=OVEN_TYPE_TRAY)
 
 
 class Oven(Base):
@@ -19,6 +30,8 @@ class Oven(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     label: Mapped[str] = mapped_column(String(40), unique=True)
     capacity_note: Mapped[str] = mapped_column(String(80), default="")
+    # 炉位自身的炉型
+    oven_type: Mapped[str] = mapped_column(String(10), default=OVEN_TYPE_TRAY)
 
 
 class Batch(Base):
