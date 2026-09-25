@@ -11,7 +11,7 @@ const drawerLinks = [
   ["/windows", "可开工"],
 ];
 
-type Oven = { id: number; label: string; capacity_note: string };
+type Oven = { id: number; label: string; capacity_note: string; oven_type: string };
 type Conflict = { id: number; batch_code: string; oven_id: number; detail: string; created_at: string };
 type Block = {
   batch_id: number;
@@ -44,6 +44,7 @@ export default function Layout() {
       id,
       label,
       capacity_note: "",
+      oven_type: "",
     }));
   }, [ovens, blocks]);
 
@@ -91,8 +92,8 @@ export default function Layout() {
               <div key={o.id} className="oven-lane-chip">
                 <span className="oven-lane-id">#{o.id}</span>
                 <strong>{o.label}</strong>
-                {o.capacity_note && (
-                  <span className="oven-lane-cap">{o.capacity_note}</span>
+                {o.oven_type && (
+                  <span className="oven-lane-cap">{o.oven_type}</span>
                 )}
               </div>
             ))}

@@ -12,6 +12,8 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(80), unique=True)
     ferment_min: Mapped[int] = mapped_column(Integer)
     bake_min: Mapped[int] = mapped_column(Integer)
+    # comma-separated oven types this product may enter, e.g. "盘炉,石板"
+    oven_types: Mapped[str] = mapped_column(String(40), default="盘炉,石板")
 
 
 class Oven(Base):
@@ -19,6 +21,7 @@ class Oven(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     label: Mapped[str] = mapped_column(String(40), unique=True)
     capacity_note: Mapped[str] = mapped_column(String(80), default="")
+    oven_type: Mapped[str] = mapped_column(String(20), default="盘炉")
 
 
 class Batch(Base):

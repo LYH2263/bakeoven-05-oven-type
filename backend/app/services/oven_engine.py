@@ -4,6 +4,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# Canonical oven types; products list the ones they may enter.
+OVEN_TYPES: tuple[str, ...] = ("盘炉", "石板")
+
+
+def parse_oven_types(value: str) -> list[str]:
+    """Split a comma-separated oven-type list, dropping blanks."""
+    return [t.strip() for t in value.split(",") if t.strip()]
+
+
+def type_matches(allowed_types: str, oven_type: str) -> bool:
+    """True when the oven's type is in the product's allowed list."""
+    return oven_type in parse_oven_types(allowed_types)
+
 
 @dataclass(frozen=True)
 class Interval:

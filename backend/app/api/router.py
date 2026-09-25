@@ -10,18 +10,31 @@ from app.schemas.schemas import (
     ConflictOut,
     GanttBlock,
     OvenOut,
+    OvenUpdate,
     ProductOut,
+    ProductUpdate,
     WindowOut,
 )
 from app.services.oven_engine import (
+    OVEN_TYPES,
     Occupancy,
     RecipeDurations,
     build_occupancies,
     find_conflicts,
     next_free_window,
+    parse_oven_types,
+    type_matches,
 )
 
 api_router = APIRouter()
+
+
+def _normalize_oven_types(raw: str) -> str:
+    """Validate a comma-separated oven-type list and store it in canonical order."""
+    parts = parse_oven_types(raw)
+    if not parts or any(t not in OVEN_TYPES for t in parts):
+        raise HTTPException(422, f"炉型无效：{raw}（可选：{'、'.join(OVEN_TYPES)}）")
+    return ",".join(t for t in OVEN_TYPES if t in parts)
 
 
 def _recipe(p: Product) -> RecipeDurations:
@@ -68,9 +81,35 @@ def products(db: Session = Depends(get_db)):
     return db.scalars(select(Product).order_by(Product.id)).all()
 
 
+@api_router.patch("/products/{product_id}", response_model=ProductOut)
+def update_product(product_id: int, body: ProductUpdate, db: Session = Depends(get_db)):
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(404, "产品不存在")
+    if body.oven_types is not None:
+        product.oven_types = _normalize_oven_types(body.oven_types)
+    db.commit()
+    db.refresh(product)
+    return product
+
+
 @api_router.get("/ovens", response_model=list[OvenOut])
 def ovens(db: Session = Depends(get_db)):
     return db.scalars(select(Oven).order_by(Oven.id)).all()
+
+
+@api_router.patch("/ovens/{oven_id}", response_model=OvenOut)
+def update_oven(oven_id: int, body: OvenUpdate, db: Session = Depends(get_db)):
+    oven = db.get(Oven, oven_id)
+    if not oven:
+        raise HTTPException(404, "炉位不存在")
+    if body.oven_type is not None:
+        if body.oven_type not in OVEN_TYPES:
+            raise HTTPException(422, f"炉型无效：{body.oven_type}（可选：{'、'.join(OVEN_TYPES)}）")
+        oven.oven_type = body.oven_type
+    db.commit()
+    db.refresh(oven)
+    return oven
 
 
 @api_router.get("/batches", response_model=list[BatchOut])
@@ -85,11 +124,19 @@ def create_batch(body: BatchCreate, db: Session = Depends(get_db)):
     oven = db.get(Oven, body.oven_id)
     if not product or not oven:
         raise HTTPException(404, "产品或炉位不存在")
+    code = body.code or f"BO-{body.start_min}"
+    if not type_matches(product.oven_types, oven.oven_type):
+        detail = (
+            f"炉型不符：产品「{product.name}」可进 {product.oven_types}，"
+            f"炉位「{oven.label}」为 {oven.oven_type}"
+        )
+        db.add(ConflictLog(batch_code=code, oven_id=oven.id, detail=detail))
+        db.commit()
+        raise HTTPException(409, detail)
     recipe = _recipe(product)
     candidates = build_occupancies(oven.id, -1, body.start_min, recipe)
     existing = _all_occupancies(db)
     hits = find_conflicts(existing, candidates)
-    code = body.code or f"BO-{body.start_min}"
     if hits:
         ex, cand = hits[0]
         detail = (
@@ -148,6 +195,8 @@ def windows(product_id: int, db: Session = Depends(get_db)):
     existing = _all_occupancies(db)
     out: list[WindowOut] = []
     for oven in db.scalars(select(Oven).order_by(Oven.id)).all():
+        if not type_matches(product.oven_types, oven.oven_type):
+            continue
         w = next_free_window(existing, oven.id, duration, search_from=8 * 60, search_to=22 * 60)
         if w:
             out.append(

@@ -5,6 +5,8 @@ from app.services.oven_engine import (
     build_occupancies,
     find_conflicts,
     next_free_window,
+    parse_oven_types,
+    type_matches,
 )
 
 
@@ -37,3 +39,16 @@ def test_next_free_in_gap():
     ]
     w = next_free_window(existing, 1, duration=30, search_from=0)
     assert w == Interval(20, 50)
+
+
+def test_parse_oven_types_trims_and_drops_blanks():
+    assert parse_oven_types("盘炉, 石板,") == ["盘炉", "石板"]
+    assert parse_oven_types("") == []
+
+
+def test_type_matches_single_and_multi():
+    assert type_matches("石板", "石板")
+    assert not type_matches("石板", "盘炉")
+    assert type_matches("盘炉,石板", "盘炉")
+    assert type_matches("盘炉,石板", "石板")
+    assert not type_matches("盘炉", "石板")

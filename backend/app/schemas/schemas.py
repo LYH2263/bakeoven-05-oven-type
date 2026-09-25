@@ -7,14 +7,24 @@ class ProductOut(BaseModel):
     name: str
     ferment_min: int
     bake_min: int
+    oven_types: str
     model_config = {"from_attributes": True}
+
+
+class ProductUpdate(BaseModel):
+    oven_types: str | None = None
 
 
 class OvenOut(BaseModel):
     id: int
     label: str
     capacity_note: str
+    oven_type: str
     model_config = {"from_attributes": True}
+
+
+class OvenUpdate(BaseModel):
+    oven_type: str | None = None
 
 
 class BatchOut(BaseModel):
